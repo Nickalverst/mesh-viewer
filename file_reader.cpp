@@ -1,4 +1,4 @@
-#include "obj_reader.hpp"
+#include "file_reader.hpp"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,9 +61,12 @@ char *read_file_into_string(const char *filename) {
 
 objContent readfile(char* path)  
 {
+    int vertex_capacity = 1024;
+    int face_capacity = 1024;
+
     objContent new_obj;
-    new_obj.vertices = (float*) malloc(sizeof(float) * 100000);
-    new_obj.faceElements = (int*) malloc(sizeof(int) * 100000);
+    new_obj.vertices = (float*) malloc(sizeof(float) * vertex_capacity);
+    new_obj.faceElements = (int*) malloc(sizeof(int) * face_capacity);
     FILE* fptr = fopen(path, "r");
 
     if (fptr == NULL) {
@@ -77,23 +80,50 @@ objContent readfile(char* path)
     while (fgets(line, sizeof(line), fptr)) {
         char *p = line;
 
+        if (i + 3 >= vertex_capacity) {
+            vertex_capacity *= 2;
+            new_obj.vertices = (float*) realloc(new_obj.vertices, sizeof(float) * vertex_capacity);
+        }
+
         if (*p == 'v') {
             if (sscanf(p, "v %f %f %f", &new_obj.vertices[i], 
                                         &new_obj.vertices[i+1], 
                                         &new_obj.vertices[i+2]) == 3) {
                 i += 3;
-            } else printf("Erro ao escanear linha.\n");
+            }
         } else if (*p == 'f') {
-            int v1, v2, v3;
-            int matched = sscanf(p, "f %d/%*d/%*d %d/%*d/%*d %d/%*d/%*d", &v1, &v2, &v3);
+            if (j + 3 >= face_capacity) {
+                face_capacity *= 2;
+                new_obj.faceElements = (int*) realloc(new_obj.faceElements, sizeof(int) * face_capacity);
+            }
+            int v[3];
+
+            int matched = sscanf(
+                p,
+                "f %d/%*d/%*d %d/%*d/%*d %d/%*d/%*d",
+                &v[0], &v[1], &v[2]
+            );
+
             if (matched != 3) {
-                matched = sscanf(p, "f %d %d %d", &v1, &v2, &v3);
-            } else printf("Erro ao escanear linha %s.\n", line);
+                matched = sscanf(
+                    p,
+                    "f %d//%*d %d//%*d %d//%*d",
+                    &v[0], &v[1], &v[2]
+                );
+            }
+
+            if (matched != 3) {
+                matched = sscanf(
+                    p,
+                    "f %d %d %d",
+                    &v[0], &v[1], &v[2]
+                );
+            }
+
             if (matched == 3) {
-                new_obj.faceElements[j] = v1 - 1;
-                new_obj.faceElements[j+1] = v2 - 1;
-                new_obj.faceElements[j+2] = v3 - 1;
-                j += 3;
+                new_obj.faceElements[j++] = v[0] - 1;
+                new_obj.faceElements[j++] = v[1] - 1;
+                new_obj.faceElements[j++] = v[2] - 1;
             }
         }
     }
