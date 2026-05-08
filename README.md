@@ -36,8 +36,8 @@ sudo apt install build-essential libglew-dev freeglut3-dev libglm-dev
 mesh/
 │
 ├── mesh.cpp
-├── obj_reader.hpp
-├── obj_reader.cpp
+├── file_reader.hpp
+├── file_reader.cpp
 ├── shaders/
 │   ├── vertex_shader.glsl
 │   └── fragment_shader.glsl
@@ -45,8 +45,9 @@ mesh/
 │   └── utils.h
 │   └── utils.cpp
 └── models/
-    └── example.obj
+    └── cow.obj
     └── bunny.obj
+    ...
 ```
 
 ---
@@ -81,7 +82,7 @@ You can also run:
 
 ---
 
-## 🎮 Controls
+## Controls
 
 | Input            | Action                            |
 | ---------------- | --------------------------------- |
