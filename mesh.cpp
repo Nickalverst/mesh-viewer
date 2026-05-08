@@ -1,4 +1,3 @@
-#include "obj_reader.hpp"
 #include <stdio.h>
 #include <cstring>
 #include <GL/glew.h>
@@ -10,6 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include "file_reader.hpp"
 
 /* Debug mode. */
 bool debug_mode = false;
@@ -52,7 +52,7 @@ bool dragging = false;
 glm::vec3 lastPoint;
 
 /* User offset for translation. */
-float userOffset[3];
+float userOffset[3] = {0.0f, 0.0f, 0.0f};
 float scale;
 float scaling_factor = 0.5f;
 float minX, maxX, minY, maxY, minZ, maxZ, maxExtent;
@@ -63,7 +63,7 @@ void reshape(int, int);
 void keyboard(unsigned char, int, int);
 void keyboardSpecial(int, int, int);
 void mouse(int, int, int, int);
-void initData(objContent obj);
+void initData(const objContent obj);
 void initShaders(void);
 void updateScale(void);
 glm::vec2 screenToNDC(int x, int y);
@@ -76,7 +76,13 @@ void motion(int x, int y) {
     glm::vec3 currentPoint = projectToSphere(ndc.x, ndc.y);
 
     glm::vec3 axis = glm::cross(lastPoint, currentPoint);
-    float angle = acos(glm::dot(lastPoint, currentPoint));
+    float dot = glm::clamp(
+        glm::dot(lastPoint, currentPoint),
+        -1.0f,
+        1.0f
+    );
+
+    float angle = acos(dot);
 
     if (glm::length(axis) > 1e-5) {
         glm::quat delta = glm::angleAxis(angle, glm::normalize(axis));
@@ -206,6 +212,7 @@ void mouse(int button, int state, int x, int y)
  */
 void display()
 {
+    glUseProgram(program);
     glm::mat4 rotationMatrix = glm::toMat4(currentRotation);
     glUniformMatrix4fv(rotationLoc, 1, GL_FALSE, &rotationMatrix[0][0]);
 
@@ -226,9 +233,8 @@ void display()
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
 
     glClearColor(bg_color[0], bg_color[1], bg_color[2], 1.0);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glUseProgram(program);
     glBindVertexArray(VAO);
     // trocar o gl_triangles pra fazer o mesh view
     if (wireframe) {
@@ -269,7 +275,7 @@ void reshape(int width, int height)
  *
  * Defines the coordinates for vertices, creates the arrays for OpenGL.
  */
-void initData(objContent obj)
+void initData(const objContent obj)
 {
     // Vertex array.
     glGenVertexArrays(1, &VAO);
@@ -283,7 +289,7 @@ void initData(objContent obj)
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, obj.n_faceElements * sizeof(int), obj.faceElements, GL_STATIC_DRAW);
-    
+
     // Set attributes.
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -348,7 +354,6 @@ int main(int argc, char *argv[])
     obj = readfile(argv[1]);
 
     glm::vec3 modelCenter;
-    glm::vec3 userOffset;
 
     // Compute bounding box
     minX = minY = minZ = FLT_MAX;
@@ -365,11 +370,12 @@ int main(int argc, char *argv[])
     glutInit(&argc, argv);
 	glutInitContextVersion(3, 3);
 	glutInitContextProfile(GLUT_CORE_PROFILE);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
 	glutInitWindowSize(win_width,win_height);
 	glutCreateWindow(argv[0]);
 	glewExperimental = GL_TRUE;
 	glewInit();
+    glEnable(GL_DEPTH_TEST);
 
 	initData(obj);
 
