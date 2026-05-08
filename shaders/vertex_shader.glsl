@@ -11,7 +11,7 @@ void main()
 {
     vec3 centered = (position - modelCenter) * scale;
     vec3 rotated = (uRotation * vec4(centered, 1.0)).xyz;
-    vec3 finalPos = rotated + modelCenter + userOffset;
+    vec3 finalPos = rotated + userOffset;
 
     gl_Position = uProjection * uView * vec4(finalPos, 1.0);
 }
