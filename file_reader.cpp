@@ -85,24 +85,52 @@ objContent readfile(char* path)
             new_obj.vertices = (float*) realloc(new_obj.vertices, sizeof(float) * vertex_capacity);
         }
 
-        if (*p == 'v') {
+        if (strncmp(p, "v ", 2) == 0) {
             if (sscanf(p, "v %f %f %f", &new_obj.vertices[i], 
                                         &new_obj.vertices[i+1], 
                                         &new_obj.vertices[i+2]) == 3) {
                 i += 3;
             }
-        } else if (*p == 'f') {
-            if (j + 3 >= face_capacity) {
+        } else if (strncmp(p, "f ", 2) == 0) {
+            if (j + 6 >= face_capacity) {
                 face_capacity *= 2;
                 new_obj.faceElements = (int*) realloc(new_obj.faceElements, sizeof(int) * face_capacity);
             }
-            int v[3];
+            int v[4];
 
             int matched = sscanf(
                 p,
-                "f %d/%*d/%*d %d/%*d/%*d %d/%*d/%*d",
-                &v[0], &v[1], &v[2]
+                "f %d/%*d/%*d %d/%*d/%*d %d/%*d/%*d %d/%*d/%*d",
+                &v[0], &v[1], &v[2], &v[3]
             );
+
+            if (matched != 4) {
+                matched = sscanf(
+                    p,
+                    "f %d/%*d %d/%*d %d/%*d",
+                    &v[0], &v[1], &v[2]
+                );
+            }
+
+            if (matched != 4) {
+                matched = sscanf(
+                    p,
+                    "f %d//%*d %d//%*d %d//%*d %d//%*d",
+                    &v[0], &v[1], &v[2], &v[3]
+                );
+            } 
+
+            if (matched == 4) {
+                new_obj.faceElements[j++] = v[0] - 1;
+                new_obj.faceElements[j++] = v[1] - 1;
+                new_obj.faceElements[j++] = v[2] - 1;
+
+                new_obj.faceElements[j++] = v[0] - 1;
+                new_obj.faceElements[j++] = v[2] - 1;
+                new_obj.faceElements[j++] = v[3] - 1;
+
+                continue;
+            }
 
             if (matched != 3) {
                 matched = sscanf(
