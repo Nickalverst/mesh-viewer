@@ -10,7 +10,7 @@ uniform vec3 userOffset;
 void main()
 {
     vec3 centered = (position - modelCenter) * scale;
-    vec3 rotated = (uRotation * vec4(centered, 1.0)).xyz;
+    vec3 rotated = (uRotation * vec4(centered, 1.0)).xyz; // w = 1.0 pq eh um ponto, nao um vetor
     vec3 finalPos = rotated + userOffset;
 
     gl_Position = uProjection * uView * vec4(finalPos, 1.0);
