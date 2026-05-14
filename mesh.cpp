@@ -76,43 +76,33 @@ void motion(int x, int y) {
     glm::vec3 currentPoint = projectToSphere(ndc.x, ndc.y);
 
     glm::vec3 axis = glm::cross(lastPoint, currentPoint);
-    float dot = glm::clamp( // pra não sumir do nada no acos quando abs(dot)>1
-        glm::dot(lastPoint, currentPoint), // pra pegar o angulo entre os vetores com o acos
+    float dot = glm::clamp(
+        glm::dot(lastPoint, currentPoint),
         -1.0f,
         1.0f
     );
 
-    if (debug_mode) {
-        printf("Dot: %f\n", dot);
-    }
-
     float angle = acos(dot);
-    // pode usar essa função?
-    //glm::quat delta = glm::angleAxis(angle, glm::normalize(axis)); //cria o quat de rotação a partir do eixo e do ângulo
-    // pelo slide: parte real = cos(angle/2)
-    // parte imaginária = u * sin(angle/2)
-    glm::vec3 u = glm::normalize(axis); // já que u é unitário
-    glm::quat delta = glm::quat(cos(angle / 2.0f), u * sin(angle / 2.0f));
-    currentRotation = delta * currentRotation; // acumula as rotaçoes
 
-    if (debug_mode) {
-        printf("Axis: (%f, %f, %f), Angle: %f\n", axis.x, axis.y, axis.z, angle);
+    if (glm::length(axis) > 1e-5) {
+        glm::quat delta = glm::angleAxis(angle, glm::normalize(axis));
+        currentRotation = delta * currentRotation;
     }
 
-    lastPoint = currentPoint; // atualiza pra rodar
+    lastPoint = currentPoint;
     glutPostRedisplay();
 }
 
 glm::vec2 screenToNDC(int x, int y) {
     return glm::vec2(
-        (2.0f * x - win_width) / win_width, // *2 mapeia de [0, win_width] pra [0, 2*win_width], -win_width centraliza em 0, e /win_width normaliza
-        (win_height - 2.0f * y) / win_height // *2 mapeia de [0, win_height] pra [0, 2*win_height], -win_height centraliza em 0, e /win_height normaliza
+        (2.0f * x - win_width) / win_width,
+        (win_height - 2.0f * y) / win_height
     );
 }
 
 glm::vec3 projectToSphere(float x, float y) {
     float z2 = 1.0f - x*x - y*y;
-    float z = z2 > 0 ? sqrt(z2) : 0.0f; // qnd x2 + y2 > 1, coloca na borda (no circulo, como se fosse 2d), senão, projeta na esfera (z = sqrt(1 - x2 - y2))
+    float z = z2 > 0 ? sqrt(z2) : 0.0f;
     return glm::normalize(glm::vec3(x, y, z));
 }
 
