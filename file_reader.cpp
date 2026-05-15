@@ -63,10 +63,13 @@ objContent readfile(char* path)
 {
     int vertex_capacity = 1024;
     int face_capacity = 1024;
+    int normal_capacity = 1024;
 
     objContent new_obj;
     new_obj.vertices = (float*) malloc(sizeof(float) * vertex_capacity);
     new_obj.faceElements = (int*) malloc(sizeof(int) * face_capacity);
+    new_obj.normals = (float*) malloc(sizeof(float) * normal_capacity);
+
     FILE* fptr = fopen(path, "r");
 
     if (fptr == NULL) {
@@ -75,21 +78,22 @@ objContent readfile(char* path)
     }
 
     char line[256];
-    int i = 0;
+    int normal_i = 0;
+    int vertex_i = 0;
     int j = 0;
     while (fgets(line, sizeof(line), fptr)) {
         char *p = line;
 
-        if (i + 3 >= vertex_capacity) {
+        if (vertex_i + 3 >= vertex_capacity) {
             vertex_capacity *= 2;
             new_obj.vertices = (float*) realloc(new_obj.vertices, sizeof(float) * vertex_capacity);
         }
 
         if (strncmp(p, "v ", 2) == 0) {
-            if (sscanf(p, "v %f %f %f", &new_obj.vertices[i], 
-                                        &new_obj.vertices[i+1], 
-                                        &new_obj.vertices[i+2]) == 3) {
-                i += 3;
+            if (sscanf(p, "v %f %f %f", &new_obj.vertices[vertex_i], 
+                                        &new_obj.vertices[vertex_i+1], 
+                                        &new_obj.vertices[vertex_i+2]) == 3) {
+                vertex_i += 3;
             }
         } else if (strncmp(p, "f ", 2) == 0) {
             if (j + 6 >= face_capacity) {
@@ -153,11 +157,22 @@ objContent readfile(char* path)
                 new_obj.faceElements[j++] = v[1] - 1;
                 new_obj.faceElements[j++] = v[2] - 1;
             }
+        } else if (strncmp(p, "vn ", 3) == 0) {
+            if (normal_i + 3 >= normal_capacity) {
+                normal_capacity *= 2;
+                new_obj.normals = (float*) realloc(new_obj.normals, sizeof(float) * normal_capacity);
+            }
+            if (sscanf(p, "vn %f %f %f", &new_obj.normals[normal_i], 
+                                        &new_obj.normals[normal_i+1], 
+                                        &new_obj.normals[normal_i+2]) == 3) {
+                normal_i += 3;
+            }
         }
     }
 
-    new_obj.n_vertices = i;
+    new_obj.n_vertices = vertex_i;
     new_obj.n_faceElements = j;
+    new_obj.n_normals = normal_i;
 
     fclose(fptr);
     
