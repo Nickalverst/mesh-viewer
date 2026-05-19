@@ -1,3 +1,5 @@
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include <stdio.h>
 #include <cstring>
 #include <GL/glew.h>
