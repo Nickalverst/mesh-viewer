@@ -8,4 +8,4 @@ mesh: mesh.cpp file_reader.cpp lib/utils.cpp
 	$(CC) $^ -o $@ $(GLLIBS)
 
 clean:
-	rm -f mesh
+	rm -f mesh mesh.o
