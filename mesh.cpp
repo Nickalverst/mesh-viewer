@@ -22,9 +22,9 @@ bool perspective = false;
 
 /* Globals */
 /** Window width. */
-int win_width  = 800;
+int win_width  = 1200;
 /** Window height. */
-int win_height = 600;
+int win_height = 800;
 
 glm::quat currentRotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f); // Global rotation quaternion
 
