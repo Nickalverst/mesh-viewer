@@ -11,6 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include "file_reader.hpp"
 
 /* Debug mode. */
@@ -30,7 +31,7 @@ glm::quat currentRotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f); // Global rotatio
 /** Program variable. */
 int program;
 /** Vertex array and buffer objects. */
-unsigned int VAO, VBO, EBO;
+unsigned int VAO, VBO, NBO, EBO;
 
 /* Object content */
 objContent obj;
@@ -49,6 +50,7 @@ GLuint viewLoc;
 GLuint modelCenterLoc;
 GLuint userOffsetLoc;
 GLuint rotationLoc;
+GLuint model;
 
 bool dragging = false;
 glm::vec3 lastPoint;
@@ -234,6 +236,24 @@ void display()
     glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, &projection[0][0]);
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
 
+    // initializing model matrix for color as identity matrix
+    glm::mat4 model = glm::mat4(1.0);
+    unsigned int loc = glGetUniformLocation(program, "model");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(model));
+
+    // Object color.
+	loc = glGetUniformLocation(program, "objectColor");
+    glUniform3f(loc, 0.5, 0.1, 0.1);
+    // Light color.
+    loc = glGetUniformLocation(program, "lightColor");
+    glUniform3f(loc, 1.0, 1.0, 1.0);
+    // Light position.
+    loc = glGetUniformLocation(program, "lightPosition");
+    glUniform3f(loc, 1.0, 0.0, 2.0);
+    // Camera position.
+    loc = glGetUniformLocation(program, "cameraPosition");
+    glUniform3f(loc, 0.0, 0.0, 3.0);
+
     glClearColor(bg_color[0], bg_color[1], bg_color[2], 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -288,13 +308,23 @@ void initData(const objContent obj)
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, obj.n_vertices * sizeof(float), obj.vertices, GL_STATIC_DRAW);
 
+    glGenBuffers(1, &NBO);
+    glBindBuffer(GL_ARRAY_BUFFER, NBO);
+    glBufferData(GL_ARRAY_BUFFER, obj.n_vertexNormals * sizeof(float), obj.vertexNormals, GL_STATIC_DRAW);
+
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, obj.n_faceElements * sizeof(int), obj.faceElements, GL_STATIC_DRAW);
 
-    // Set attributes.
+    // Set vertex attribute
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // Set normal attribute (one normal per vertex)
+    glBindBuffer(GL_ARRAY_BUFFER, NBO);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
 
     // Unbind Vertex Array Object.
     glBindVertexArray(0);
@@ -328,6 +358,7 @@ void initShaders()
     modelCenterLoc = glGetUniformLocation(program, "modelCenter");
     userOffsetLoc = glGetUniformLocation(program, "userOffset");
     rotationLoc = glGetUniformLocation(program, "uRotation");
+
 }
 
 int main(int argc, char *argv[])
