@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 using namespace std;
 
 // Reads a file into a dynamically allocated string.
@@ -69,6 +70,7 @@ objContent readfile(char* path)
     new_obj.vertices = (float*) malloc(sizeof(float) * vertex_capacity);
     new_obj.faceElements = (int*) malloc(sizeof(int) * face_capacity);
     new_obj.normals = (float*) malloc(sizeof(float) * normal_capacity);
+    new_obj.faceNormalIndices = (int*) malloc(sizeof(int) * face_capacity);
 
     FILE* fptr = fopen(path, "r");
 
@@ -99,63 +101,46 @@ objContent readfile(char* path)
             if (j + 6 >= face_capacity) {
                 face_capacity *= 2;
                 new_obj.faceElements = (int*) realloc(new_obj.faceElements, sizeof(int) * face_capacity);
-            }
-            int v[4];
-
-            int matched = sscanf(
-                p,
-                "f %d/%*d/%*d %d/%*d/%*d %d/%*d/%*d %d/%*d/%*d",
-                &v[0], &v[1], &v[2], &v[3]
-            );
-
-            if (matched != 4) {
-                matched = sscanf(
-                    p,
-                    "f %d/%*d %d/%*d %d/%*d",
-                    &v[0], &v[1], &v[2]
-                );
+                new_obj.faceNormalIndices = (int*) realloc(new_obj.faceNormalIndices, sizeof(int) * face_capacity);
             }
 
-            if (matched != 4) {
-                matched = sscanf(
-                    p,
-                    "f %d//%*d %d//%*d %d//%*d %d//%*d",
-                    &v[0], &v[1], &v[2], &v[3]
-                );
-            } 
+            // tokenize the face line after the "f "
+            char *s = p + 2;
+            char *tok = strtok(s, " \t\r\n");
+            int vi[4]; // vertex indices parsed from token
+            int ni[4]; // normal indices parsed from token (0 if none)
+            int cnt = 0;
 
-            if (matched == 4) {
-                new_obj.faceElements[j++] = v[0] - 1;
-                new_obj.faceElements[j++] = v[1] - 1;
-                new_obj.faceElements[j++] = v[2] - 1;
-
-                new_obj.faceElements[j++] = v[0] - 1;
-                new_obj.faceElements[j++] = v[2] - 1;
-                new_obj.faceElements[j++] = v[3] - 1;
-
-                continue;
+            // here, a tok looks like "v", "v/vt", "v//vn", or "v/vt/vn". We only care about v and vn for now.
+            while (tok && cnt < 4) {
+                int v = 0, t = 0, n = 0;
+                if (strstr(tok, "//")) {
+                    sscanf(tok, "%d//%d", &v, &n);
+                } else {
+                    int c = sscanf(tok, "%d/%d/%d", &v, &t, &n);
+                    if (c == 1) { /* only vertex index parsed, n stays 0 */ }
+                    else if (c == 2) { /* v/vt parsed, n stays 0 */ }
+                }
+                vi[cnt] = v;
+                ni[cnt] = n; // keep raw index (1-based) or 0 if missing
+                cnt++;
+                tok = strtok(NULL, " \t\r\n");
             }
 
-            if (matched != 3) {
-                matched = sscanf(
-                    p,
-                    "f %d//%*d %d//%*d %d//%*d",
-                    &v[0], &v[1], &v[2]
-                );
-            }
-
-            if (matched != 3) {
-                matched = sscanf(
-                    p,
-                    "f %d %d %d",
-                    &v[0], &v[1], &v[2]
-                );
-            }
-
-            if (matched == 3) {
-                new_obj.faceElements[j++] = v[0] - 1;
-                new_obj.faceElements[j++] = v[1] - 1;
-                new_obj.faceElements[j++] = v[2] - 1;
+            if (cnt == 4) {
+                // triangulate quad into two triangles (0,1,2) and (0,2,3)
+                // triangle 1
+                new_obj.faceElements[j] = vi[0] - 1; new_obj.faceNormalIndices[j++] = ni[0] ? (ni[0] - 1) : -1;
+                new_obj.faceElements[j] = vi[1] - 1; new_obj.faceNormalIndices[j++] = ni[1] ? (ni[1] - 1) : -1;
+                new_obj.faceElements[j] = vi[2] - 1; new_obj.faceNormalIndices[j++] = ni[2] ? (ni[2] - 1) : -1;
+                // triangle 2
+                new_obj.faceElements[j] = vi[0] - 1; new_obj.faceNormalIndices[j++] = ni[0] ? (ni[0] - 1) : -1;
+                new_obj.faceElements[j] = vi[2] - 1; new_obj.faceNormalIndices[j++] = ni[2] ? (ni[2] - 1) : -1;
+                new_obj.faceElements[j] = vi[3] - 1; new_obj.faceNormalIndices[j++] = ni[3] ? (ni[3] - 1) : -1;
+            } else if (cnt == 3) {
+                new_obj.faceElements[j] = vi[0] - 1; new_obj.faceNormalIndices[j++] = ni[0] ? (ni[0] - 1) : -1;
+                new_obj.faceElements[j] = vi[1] - 1; new_obj.faceNormalIndices[j++] = ni[1] ? (ni[1] - 1) : -1;
+                new_obj.faceElements[j] = vi[2] - 1; new_obj.faceNormalIndices[j++] = ni[2] ? (ni[2] - 1) : -1;
             }
         } else if (strncmp(p, "vn ", 3) == 0) {
             if (normal_i + 3 >= normal_capacity) {
@@ -174,6 +159,40 @@ objContent readfile(char* path)
     new_obj.n_faceElements = j;
     new_obj.n_normals = normal_i;
 
+    // allocate per-vertex normals and counters
+    new_obj.n_vertexNormals = new_obj.n_vertices * 3;
+    new_obj.vertexNormals = (float*) calloc(new_obj.n_vertexNormals, sizeof(float));
+    int *vn_count = (int*) calloc(new_obj.n_vertices, sizeof(int));
+
+    for (int k = 0; k < new_obj.n_faceElements; ++k) {
+        int vIndex = new_obj.faceElements[k];
+        int nIndex = new_obj.faceNormalIndices[k];
+        if (vIndex < 0 || nIndex < 0) continue;
+
+        float *out = &new_obj.vertexNormals[vIndex * 3];
+        float *src = &new_obj.normals[nIndex * 3];
+
+        out[0] += src[0];
+        out[1] += src[1];
+        out[2] += src[2];
+        vn_count[vIndex] += 1;
+    }
+
+    // average and normalize
+    for (int vi = 0; vi < new_obj.n_vertices; ++vi) {
+        int c = vn_count[vi];
+        float *out = &new_obj.vertexNormals[vi*3];
+        if (c > 0) {
+            out[0] /= c; out[1] /= c; out[2] /= c;
+            float len = sqrtf(out[0]*out[0] + out[1]*out[1] + out[2]*out[2]);
+            if (len > 1e-6f) { out[0] /= len; out[1] /= len; out[2] /= len; }
+        } else {
+            // fallback: zero or compute geometric normal from faces if you prefer
+            out[0] = out[1] = out[2] = 0.0f;
+        }
+    }
+
+    free(vn_count);
     fclose(fptr);
     
     return new_obj;
