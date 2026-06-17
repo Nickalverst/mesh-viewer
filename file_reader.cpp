@@ -164,18 +164,54 @@ objContent readfile(char* path)
     new_obj.vertexNormals = (float*) calloc(new_obj.n_vertexNormals, sizeof(float));
     int *vn_count = (int*) calloc(new_obj.n_vertices, sizeof(int));
 
-    for (int k = 0; k < new_obj.n_faceElements; ++k) {
-        int vIndex = new_obj.faceElements[k];
-        int nIndex = new_obj.faceNormalIndices[k];
-        if (vIndex < 0 || nIndex < 0) continue;
+    // accumulate normals per vertex
+    int nTriangles = new_obj.n_faceElements / 3;
+    for (int t = 0; t < nTriangles; ++t) {
+        int idx = t * 3;
+        int v0 = new_obj.faceElements[idx + 0];
+        int v1 = new_obj.faceElements[idx + 1];
+        int v2 = new_obj.faceElements[idx + 2];
+        if (v0 < 0 || v1 < 0 || v2 < 0) continue;
 
-        float *out = &new_obj.vertexNormals[vIndex * 3];
-        float *src = &new_obj.normals[nIndex * 3];
+        int n0 = new_obj.faceNormalIndices[idx + 0];
+        int n1 = new_obj.faceNormalIndices[idx + 1];
+        int n2 = new_obj.faceNormalIndices[idx + 2];
 
-        out[0] += src[0];
-        out[1] += src[1];
-        out[2] += src[2];
-        vn_count[vIndex] += 1;
+        // compute geometric normal once if any vertex lacks an explicit normal
+        float faceN[3] = {0.0f, 0.0f, 0.0f};
+        if (n0 < 0 || n1 < 0 || n2 < 0) {
+            float *p0 = &new_obj.vertices[v0*3];
+            float *p1 = &new_obj.vertices[v1*3];
+            float *p2 = &new_obj.vertices[v2*3];
+            float u[3] = { p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2] };
+            float v_[3] = { p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2] };
+            faceN[0] = u[1]*v_[2] - u[2]*v_[1];
+            faceN[1] = u[2]*v_[0] - u[0]*v_[2];
+            faceN[2] = u[0]*v_[1] - u[1]*v_[0];
+            float flen = sqrtf(faceN[0]*faceN[0] + faceN[1]*faceN[1] + faceN[2]*faceN[2]);
+            if (flen > 1e-6f) { faceN[0] /= flen; faceN[1] /= flen; faceN[2] /= flen; }
+            else { faceN[0] = faceN[1] = faceN[2] = 0.0f; }
+        }
+
+        // helper to accumulate a normal to a vertex and increment count
+        auto accum = [&](int vIdx, int nIdx) {
+            if (vIdx < 0) return;
+            if (nIdx >= 0) {
+                float *src = &new_obj.normals[nIdx * 3];
+                new_obj.vertexNormals[vIdx*3 + 0] += src[0];
+                new_obj.vertexNormals[vIdx*3 + 1] += src[1];
+                new_obj.vertexNormals[vIdx*3 + 2] += src[2];
+            } else {
+                new_obj.vertexNormals[vIdx*3 + 0] += faceN[0];
+                new_obj.vertexNormals[vIdx*3 + 1] += faceN[1];
+                new_obj.vertexNormals[vIdx*3 + 2] += faceN[2];
+            }
+            vn_count[vIdx] += 1;
+        };
+
+        accum(v0, n0);
+        accum(v1, n1);
+        accum(v2, n2);
     }
 
     // average and normalize
