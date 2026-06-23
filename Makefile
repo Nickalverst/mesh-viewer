@@ -2,9 +2,9 @@ CC = g++
 
 GLLIBS = -lglut -lGLEW -lGL
 
-all: mesh
+all: mesh2
 
-mesh: mesh.cpp file_reader.cpp lib/utils.cpp
+mesh2: mesh.cpp file_reader.cpp lib/*.cpp
 	$(CC) $^ -o $@ $(GLLIBS)
 
 clean:

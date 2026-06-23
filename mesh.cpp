@@ -13,6 +13,8 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "file_reader.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "lib/stb_image.h"
 
 /* Debug mode. */
 bool debug_mode = false;
@@ -33,6 +35,10 @@ int program;
 /** Vertex array and buffer objects. */
 unsigned int VAO, VBO, NBO, EBO;
 
+/** Texture information */
+unsigned int texture;
+int width, height, nrChannels;
+
 /* Object content */
 objContent obj;
 float bg_color[3] = {0.2, 0.3, 0.3};
@@ -48,6 +54,7 @@ GLuint scaleLoc;
 GLuint projectionLoc;
 GLuint viewLoc;
 GLuint modelCenterLoc;
+GLuint x_limLoc, y_limLoc;
 GLuint userOffsetLoc;
 GLuint rotationLoc;
 GLuint model;
@@ -264,6 +271,12 @@ void display()
     } else {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
+
+    glBindVertexArray(VAO);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
     glDrawElements(type_primitive, obj.n_faceElements, GL_UNSIGNED_INT, 0);
 
     glutSwapBuffers();
@@ -292,6 +305,38 @@ void reshape(int width, int height)
     glutPostRedisplay();
 }
 
+/** 
+ * Load texture data.
+ *
+ * Creates the OpenGL object and unloads the texture.
+ */
+unsigned int loadTex(const char* path_to_img)
+{
+    glGenTextures(1, &texture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    // set the texture wrapping/filtering options (on the currently bound texture object)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // load and generate the texture
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load(path_to_img, &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
+
+    return texture;
+}
+
 /**
  * Init vertex data.
  *
@@ -301,6 +346,10 @@ void initData(const objContent obj)
 {
     // Vertex array.
     glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    // Texture
+    glBindTexture(GL_TEXTURE_2D, texture);
     glBindVertexArray(VAO);
 
     // Vertex buffer
@@ -337,13 +386,13 @@ void initData(const objContent obj)
 void initShaders()
 {
     // Request a program and shader slots from GPU
-    const char *vertex_code = read_file_into_string("shaders/vertex_shader.glsl");
+    const char *vertex_code = read_file_into_string("shaders/vertex_orthog.glsl");
     if (!vertex_code) { 
         fprintf(stderr, "Failed to load vertex shader\n"); 
         exit(1); 
     }
 
-    const char *fragment_code = read_file_into_string("shaders/fragment_shader.glsl");
+    const char *fragment_code = read_file_into_string("shaders/fragment.glsl");
     if (!fragment_code) { 
         fprintf(stderr, "Failed to load fragment shader\n"); 
         exit(1); 
@@ -356,15 +405,17 @@ void initShaders()
     projectionLoc = glGetUniformLocation(program, "uProjection");
     viewLoc = glGetUniformLocation(program, "uView");
     modelCenterLoc = glGetUniformLocation(program, "modelCenter");
+    x_limLoc = glGetUniformLocation(program, "x_lim");
+    y_limLoc = glGetUniformLocation(program, "y_lim");
     userOffsetLoc = glGetUniformLocation(program, "userOffset");
     rotationLoc = glGetUniformLocation(program, "uRotation");
-
+    glUniform1i(glGetUniformLocation(program, "ourTexture"), 0);
 }
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2) {
-        printf("Usage: %s <obj_file>\n", argv[0]);
+    if (argc != 3) {
+        printf("Usage: %s <obj_file> <texture_file>\n", argv[0]);
         return 1;
     }
 
@@ -410,13 +461,17 @@ int main(int argc, char *argv[])
 	glewInit();
     glEnable(GL_DEPTH_TEST);
 
+    texture = loadTex(argv[2]);
+
 	initData(obj);
 
 	// Create shaders.
 	initShaders();
 	glUseProgram(program);
 	updateScale();
-
+    
+    glUniform2f(x_limLoc, minX, maxX);
+    glUniform2f(y_limLoc, minY, maxY);
     glUniform3f(modelCenterLoc, modelCenter.x, modelCenter.y, modelCenter.z);
     glUniform3f(userOffsetLoc, 0.0f, 0.0f, 0.0f);
 

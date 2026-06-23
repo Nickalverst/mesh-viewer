@@ -8,9 +8,12 @@ uniform mat4 uRotation;
 uniform mat4 model;
 uniform vec3 modelCenter;
 uniform vec3 userOffset;
+uniform vec2 x_lim;
+uniform vec2 y_lim;
 
 out vec3 vNormal;
 out vec3 fragPosition;
+out vec2 TexCoord;
 
 void main()
 {
@@ -23,4 +26,10 @@ void main()
     fragPosition = vec3(model * vec4(finalPos, 1.0));
 
     gl_Position = uProjection * uView * model * vec4(finalPos, 1.0);
+
+    // Normalizar a textura para ir pra uv
+    float u = (position.x - x_lim.x) / (x_lim.y - x_lim.x);
+    float v = (position.y - y_lim.x) / (y_lim.y - y_lim.x);
+
+    TexCoord = vec2(u, v);
 }

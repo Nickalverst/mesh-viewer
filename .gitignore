@@ -34,7 +34,7 @@
 *.i*86
 *.x86_64
 *.hex
-mesh
+mesh*
 
 # Debug files
 *.dSYM/
