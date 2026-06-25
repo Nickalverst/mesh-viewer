@@ -449,7 +449,7 @@ int main(int argc, char *argv[])
     }
 
     if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
-        printf("Usage: %s <obj_file>\n", argv[0]);
+        printf("Usage: %s <obj_file> <texture_file>\n", argv[0]);
         printf("Controls:\n");
         printf("  W/S: Move object forward/backward\n");
         printf("  Arrow Keys: Move object left/right/up/down\n");
@@ -458,6 +458,10 @@ int main(int argc, char *argv[])
         printf("  V: Toggle wireframe/solid mode\n");
         printf("  P: Toggle points/triangles mode\n");
         printf("  T: Toggle perspective/orthographic view\n");
+        printf("  1: Toggle Phong lighting\n");
+        printf("  2: Orthographic texture projection\n");
+        printf("  3: Cylindrical texture projection\n");
+        printf("  4: Spherical texture projection\n");
         printf("  D: Toggle debug mode (prints offsets and scaling factor)\n");
         printf("  ESC: Exit\n");
 
