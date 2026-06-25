@@ -1,12 +1,20 @@
 # OpenGL OBJ Viewer
 
-This project is a simple 3D `.obj` viewer implemented in C++ using OpenGL. It supports:
+This project is a simple 3D `.obj` viewer implemented in C++ using OpenGL.
+
+The original viewer (`mesh`) supports:
 
 * Scaling around the model center
 * Translation via keyboard
 * Quaternion-based trackball rotation (mouse drag)
 * Perspective / orthographic projection toggle
 * Solid, wireframe and point visualization modes
+
+The extended viewer (`mesh2`) additionally supports:
+
+* Texture mapping
+* Orthographic, cylindrical and spherical texture-coordinate generation
+* Phong lighting toggle
 
 ---
 
@@ -32,29 +40,35 @@ sudo apt install build-essential libglew-dev freeglut3-dev libglm-dev
 
 ## Project Structure
 
-```
+```text
 mesh/
 │
 ├── mesh.cpp
+├── mesh2.cpp
 ├── file_reader.hpp
 ├── file_reader.cpp
 ├── shaders/
+│   ├── fragment_shader.glsl
 │   ├── vertex_shader.glsl
-│   └── fragment_shader.glsl
+│   ├── vertex_orthographic.glsl
+│   ├── vertex_cylindrical.glsl
+│   ├── vertex_spherical.glsl
+│   └── fragment.glsl
 ├── lib/
-│   └── utils.h
-│   └── utils.cpp
+│   ├── utils.h
+│   ├── utils.cpp
+│   └── stb_image.h
 └── models/
-    └── cow.obj
-    └── bunny.obj
-    ...
+    ├── cow.obj
+    ├── bunny.obj
+    └── ...
 ```
 
 ---
 
 ## Compilation
 
-Use the Makefile. Just type the command:
+Use the Makefile. Just type:
 
 ```bash
 make
@@ -64,10 +78,20 @@ make
 
 ## Running the Program
 
+### mesh
+
 Run the program by passing an `.obj` file:
 
 ```bash
 ./mesh models/bunny.obj
+```
+
+### mesh2
+
+Run the program by passing an `.obj` file and a texture file:
+
+```bash
+./mesh2 models/bunny.obj textures/wall.jpg
 ```
 
 ---
@@ -84,6 +108,8 @@ You can also run:
 
 ## Controls
 
+### mesh
+
 | Input            | Action                            |
 | ---------------- | --------------------------------- |
 | **Mouse Drag**   | Rotate object (trackball)         |
@@ -95,6 +121,15 @@ You can also run:
 | **T**            | Toggle perspective / orthographic |
 | **D**            | Toggle debug output               |
 | **ESC**          | Exit                              |
+
+### mesh2-only commands
+
+| Input | Action                          |
+| ----- | ------------------------------- |
+| **1** | Toggle Phong lighting           |
+| **2** | Orthographic texture projection |
+| **3** | Cylindrical texture projection  |
+| **4** | Spherical texture projection    |
 
 ---
 
