@@ -29,9 +29,13 @@ int win_width  = 1200;
 int win_height = 800;
 
 glm::quat currentRotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f); // Global rotation quaternion
+glm::vec3 modelCenter;
+
+bool phong = 1;
 
 /** Program variable. */
-int program;
+int program, program_orthographic, program_cylindrical, program_spherical;
+
 /** Vertex array and buffer objects. */
 unsigned int VAO, VBO, NBO, EBO;
 
@@ -48,16 +52,6 @@ bool wireframe = false;
 
 /* Primitive type. */
 int type_primitive = GL_TRIANGLES;
-
-/** Uniform locations. */
-GLuint scaleLoc;
-GLuint projectionLoc;
-GLuint viewLoc;
-GLuint modelCenterLoc;
-GLuint x_limLoc, y_limLoc;
-GLuint userOffsetLoc;
-GLuint rotationLoc;
-GLuint model;
 
 bool dragging = false;
 glm::vec3 lastPoint;
@@ -117,6 +111,19 @@ glm::vec3 projectToSphere(float x, float y) {
     return glm::normalize(glm::vec3(x, y, z));
 }
 
+void generate_uniforms()
+{
+    glUseProgram(program);
+    
+    glUniform2f(glGetUniformLocation(program, "x_lim"), minX, maxX);
+    glUniform2f(glGetUniformLocation(program, "y_lim"), minY, maxY);
+    glUniform3f(glGetUniformLocation(program, "modelCenter"), modelCenter.x, modelCenter.y, modelCenter.z);
+    glUniform3f(glGetUniformLocation(program, "userOffset"), userOffset[0], userOffset[1], userOffset[2]);
+    glUniform1f(glGetUniformLocation(program, "scale"), scale);
+    glUniform1i(glGetUniformLocation(program, "ourTexture"), 0);
+    glUniform1i(glGetUniformLocation(program, "phong"), phong);
+}
+
 void keyboard(unsigned char key, int x, int y)
 {
     switch (key) {
@@ -155,11 +162,27 @@ void keyboard(unsigned char key, int x, int y)
         case 'T':
             perspective = !perspective;
             break;
+        case '1':
+            phong = !phong;
+            generate_uniforms();
+            break;
+        case '2':
+            program = program_orthographic;
+            generate_uniforms();
+            break;
+        case '3':
+            program = program_cylindrical;
+            generate_uniforms();
+            break;
+        case '4':
+            program = program_spherical;
+            generate_uniforms();
+            break;
     }
     if (debug_mode) {
         printf("Offset: (%f, %f, %f)\n", userOffset[0], userOffset[1], userOffset[2]);
     }
-    glUniform3f(userOffsetLoc, userOffset[0], userOffset[1], userOffset[2]);
+    glUniform3f(glGetUniformLocation(program, "userOffset"), userOffset[0], userOffset[1], userOffset[2]);
     glutPostRedisplay();
 }
 
@@ -181,7 +204,7 @@ void keyboardSpecial(int key, int x, int y) {
     if (debug_mode) {
         printf("Offset: (%f, %f, %f)\n", userOffset[0], userOffset[1], userOffset[2]);
     }
-    glUniform3f(userOffsetLoc, userOffset[0], userOffset[1], userOffset[2]);
+    glUniform3f(glGetUniformLocation(program, "userOffset"), userOffset[0], userOffset[1], userOffset[2]);
     glutPostRedisplay();
 }
 
@@ -212,7 +235,7 @@ void mouse(int button, int state, int x, int y)
         printf("Scaling factor: %f\n", scaling_factor);
     }
 
-    glUniform1f(scaleLoc, scale);
+    glUniform1f(glGetUniformLocation(program, "scale"), scale);
     glutPostRedisplay();
 }
 
@@ -225,7 +248,7 @@ void display()
 {
     glUseProgram(program);
     glm::mat4 rotationMatrix = glm::toMat4(currentRotation);
-    glUniformMatrix4fv(rotationLoc, 1, GL_FALSE, &rotationMatrix[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(program, "uRotation"), 1, GL_FALSE, &rotationMatrix[0][0]);
 
     glm::mat4 projection;
     
@@ -240,26 +263,21 @@ void display()
                                  glm::vec3(0.0f, 0.0f, 0.0f), // Look at point
                                  glm::vec3(0.0f, 1.0f, 0.0f)); // Up vector
 
-    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, &projection[0][0]);
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(program, "uProjection"), 1, GL_FALSE, &projection[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(program, "uView"), 1, GL_FALSE, &view[0][0]);
 
     // initializing model matrix for color as identity matrix
     glm::mat4 model = glm::mat4(1.0);
-    unsigned int loc = glGetUniformLocation(program, "model");
-    glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
     // Object color.
-	loc = glGetUniformLocation(program, "objectColor");
-    glUniform3f(loc, 0.5, 0.1, 0.1);
+    glUniform3f(glGetUniformLocation(program, "objectColor"), 0.5, 0.1, 0.1);
     // Light color.
-    loc = glGetUniformLocation(program, "lightColor");
-    glUniform3f(loc, 1.0, 1.0, 1.0);
+    glUniform3f(glGetUniformLocation(program, "lightColor"), 1.0, 1.0, 1.0);
     // Light position.
-    loc = glGetUniformLocation(program, "lightPosition");
-    glUniform3f(loc, 1.0, 0.0, 2.0);
+    glUniform3f(glGetUniformLocation(program, "lightPosition"), 1.0, 0.0, 2.0);
     // Camera position.
-    loc = glGetUniformLocation(program, "cameraPosition");
-    glUniform3f(loc, 0.0, 0.0, 3.0);
+    glUniform3f(glGetUniformLocation(program, "cameraPosition"), 0.0, 0.0, 3.0);
 
     glClearColor(bg_color[0], bg_color[1], bg_color[2], 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -285,7 +303,7 @@ void display()
 void updateScale() {
     scale = 2.0f / maxExtent;
     scale *= scaling_factor;
-    glUniform1f(scaleLoc, scale);
+    glUniform1f(glGetUniformLocation(program, "scale"), scale);
 }
 
 /**
@@ -386,8 +404,20 @@ void initData(const objContent obj)
 void initShaders()
 {
     // Request a program and shader slots from GPU
-    const char *vertex_code = read_file_into_string("shaders/vertex_orthog.glsl");
-    if (!vertex_code) { 
+    const char *vertex_orthographic_code = read_file_into_string("shaders/vertex_orthographic.glsl");
+    if (!vertex_orthographic_code) { 
+        fprintf(stderr, "Failed to load vertex shader\n"); 
+        exit(1); 
+    }
+
+    const char *vertex_cylindrical_code = read_file_into_string("shaders/vertex_cylindrical.glsl");
+    if (!vertex_cylindrical_code) { 
+        fprintf(stderr, "Failed to load vertex shader\n"); 
+        exit(1); 
+    }
+
+    const char *vertex_spherical_code = read_file_into_string("shaders/vertex_spherical.glsl");
+    if (!vertex_spherical_code) { 
         fprintf(stderr, "Failed to load vertex shader\n"); 
         exit(1); 
     }
@@ -398,18 +428,17 @@ void initShaders()
         exit(1); 
     }
 
-    program = createShaderProgram(vertex_code, fragment_code);
-    free((void*)vertex_code);
+    program_orthographic = createShaderProgram(vertex_orthographic_code, fragment_code);
+    program_cylindrical = createShaderProgram(vertex_cylindrical_code, fragment_code);
+    program_spherical = createShaderProgram(vertex_spherical_code, fragment_code);
+
+    program = program_orthographic;
+
+    free((void*)vertex_orthographic_code);
+    free((void*)vertex_cylindrical_code);
+    free((void*)vertex_spherical_code);
     free((void*)fragment_code);
-    scaleLoc = glGetUniformLocation(program, "scale");
-    projectionLoc = glGetUniformLocation(program, "uProjection");
-    viewLoc = glGetUniformLocation(program, "uView");
-    modelCenterLoc = glGetUniformLocation(program, "modelCenter");
-    x_limLoc = glGetUniformLocation(program, "x_lim");
-    y_limLoc = glGetUniformLocation(program, "y_lim");
-    userOffsetLoc = glGetUniformLocation(program, "userOffset");
-    rotationLoc = glGetUniformLocation(program, "uRotation");
-    glUniform1i(glGetUniformLocation(program, "ourTexture"), 0);
+    generate_uniforms();
 }
 
 int main(int argc, char *argv[])
@@ -436,8 +465,6 @@ int main(int argc, char *argv[])
     }
 
     obj = readfile(argv[1]);
-
-    glm::vec3 modelCenter;
 
     // Compute bounding box
     minX = minY = minZ = FLT_MAX;
@@ -469,11 +496,8 @@ int main(int argc, char *argv[])
 	initShaders();
 	glUseProgram(program);
 	updateScale();
-    
-    glUniform2f(x_limLoc, minX, maxX);
-    glUniform2f(y_limLoc, minY, maxY);
-    glUniform3f(modelCenterLoc, modelCenter.x, modelCenter.y, modelCenter.z);
-    glUniform3f(userOffsetLoc, 0.0f, 0.0f, 0.0f);
+
+    generate_uniforms();
 
 	glutReshapeFunc(reshape);
 	glutDisplayFunc(display);
