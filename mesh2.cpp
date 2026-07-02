@@ -35,6 +35,7 @@ bool phong = 1;
 
 /** Program variable. */
 int program, program_orthographic, program_cylindrical, program_spherical;
+int vertex_shader;
 
 /** Vertex array and buffer objects. */
 unsigned int VAO, VBO, NBO, EBO;
@@ -403,41 +404,42 @@ void initData(const objContent obj)
  */
 void initShaders()
 {
-    // Request a program and shader slots from GPU
-    const char *vertex_orthographic_code = read_file_into_string("shaders/vertex_orthographic.glsl");
-    if (!vertex_orthographic_code) { 
+    // Load the vertex shader for textured objects
+    const char *vertex_code = read_file_into_string("shaders/vertex_textured.glsl");
+    if (!vertex_code) { 
         fprintf(stderr, "Failed to load vertex shader\n"); 
         exit(1); 
     }
 
-    const char *vertex_cylindrical_code = read_file_into_string("shaders/vertex_cylindrical.glsl");
-    if (!vertex_cylindrical_code) { 
-        fprintf(stderr, "Failed to load vertex shader\n"); 
+    // Load the three fragment shaders for different projections
+    const char *fragment_orthographic_code = read_file_into_string("shaders/fragment_orthographic.glsl");
+    if (!fragment_orthographic_code) { 
+        fprintf(stderr, "Failed to load fragment orthographic shader\n"); 
         exit(1); 
     }
 
-    const char *vertex_spherical_code = read_file_into_string("shaders/vertex_spherical.glsl");
-    if (!vertex_spherical_code) { 
-        fprintf(stderr, "Failed to load vertex shader\n"); 
+    const char *fragment_cylindrical_code = read_file_into_string("shaders/fragment_cylindrical.glsl");
+    if (!fragment_cylindrical_code) { 
+        fprintf(stderr, "Failed to load fragment cylindrical shader\n"); 
         exit(1); 
     }
 
-    const char *fragment_code = read_file_into_string("shaders/fragment.glsl");
-    if (!fragment_code) { 
-        fprintf(stderr, "Failed to load fragment shader\n"); 
+    const char *fragment_spherical_code = read_file_into_string("shaders/fragment_spherical.glsl");
+    if (!fragment_spherical_code) { 
+        fprintf(stderr, "Failed to load fragment spherical shader\n"); 
         exit(1); 
     }
 
-    program_orthographic = createShaderProgram(vertex_orthographic_code, fragment_code);
-    program_cylindrical = createShaderProgram(vertex_cylindrical_code, fragment_code);
-    program_spherical = createShaderProgram(vertex_spherical_code, fragment_code);
+    program_orthographic = createShaderProgram(vertex_code, fragment_orthographic_code);
+    program_cylindrical = createShaderProgram(vertex_code, fragment_cylindrical_code);
+    program_spherical = createShaderProgram(vertex_code, fragment_spherical_code);
 
     program = program_orthographic;
 
-    free((void*)vertex_orthographic_code);
-    free((void*)vertex_cylindrical_code);
-    free((void*)vertex_spherical_code);
-    free((void*)fragment_code);
+    free((void*)vertex_code);
+    free((void*)fragment_orthographic_code);
+    free((void*)fragment_cylindrical_code);
+    free((void*)fragment_spherical_code);
     generate_uniforms();
 }
 
